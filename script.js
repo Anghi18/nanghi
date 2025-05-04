@@ -202,8 +202,9 @@ function mostrarRegistro() {
   ocultarTodasSecciones();
   
   const loginSection = document.getElementById('loginSection');
-  loginSection.innerHTML = '';
+  loginSection.innerHTML = ''; // Limpiar completamente
   
+  // Crear estructura completa del formulario de registro
   const registerHTML = `
     <div class="login-box">
       <div class="login-header">
@@ -219,26 +220,38 @@ function mostrarRegistro() {
       </form>
       <div class="new-user">
         <p>¿Ya tienes cuenta?</p>
-        <button id="loginBtn">Iniciar sesión</button>
+        <button id="backToLoginBtn">Iniciar sesión</button>
       </div>
     </div>
   `;
   
+  // Insertar el HTML
   loginSection.insertAdjacentHTML('beforeend', registerHTML);
   
+  // Asegurar que el contenedor se muestre
+  loginSection.style.display = 'flex';
+  
+  // Registrar eventos después de que el HTML existe
   document.getElementById('registerForm').addEventListener('submit', function(e) {
     e.preventDefault();
     registrarUsuario();
   });
   
-  document.getElementById('loginBtn').addEventListener('click', mostrarLogin);
+  document.getElementById('backToLoginBtn').addEventListener('click', mostrarLogin);
 }
 
+// Y actualiza la función registrarUsuario() así:
 function registrarUsuario() {
-  const name = document.getElementById('registerName').value;
-  const email = document.getElementById('registerEmail').value;
+  const name = document.getElementById('registerName').value.trim();
+  const email = document.getElementById('registerEmail').value.trim();
   const password = document.getElementById('registerPassword').value;
   const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+  // Validaciones
+  if (!name || !email || !password || !confirmPassword) {
+    mostrarNotificacion('Todos los campos son obligatorios', true);
+    return;
+  }
 
   if (password !== confirmPassword) {
     mostrarNotificacion('Las contraseñas no coinciden', true);
@@ -250,8 +263,19 @@ function registrarUsuario() {
     return;
   }
 
-  mostrarNotificacion('Registro exitoso. Ahora puedes iniciar sesión');
-  mostrarLogin();
+  if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+    mostrarNotificacion('Ingrese un correo electrónico válido', true);
+    return;
+  }
+
+  // Simular registro exitoso
+  mostrarNotificacion('Registro exitoso. Redirigiendo...');
+  
+  // Limpiar formulario
+  document.getElementById('registerForm').reset();
+  
+  // Mostrar login después de 2 segundos
+  setTimeout(mostrarLogin, 2000);
 }
 
 function mostrarPresupuesto() {
