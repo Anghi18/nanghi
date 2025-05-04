@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>App NANGHI</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -65,6 +66,16 @@
         <h3>Vista previa del archivo</h3>
         <div id="excelPreview" class="excel-preview"></div>
         <button class="generate-btn" id="generateAnalysis">Generar análisis</button>
+      </div>
+    </div>
+
+    <!-- Modal para Google Sheets -->
+    <div id="googleSheetsModal" class="modal">
+      <div class="modal-content">
+        <span class="close" id="closeSheetsModal">&times;</span>
+        <h3>Vista previa de Google Sheets</h3>
+        <div id="sheetsPreview" class="excel-preview"></div>
+        <button class="generate-btn" id="generateFromSheets">Generar análisis</button>
       </div>
     </div>
   </section>
