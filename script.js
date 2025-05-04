@@ -3,7 +3,7 @@ let currentFileInput = null;
 let excelData = [];
 let tendenciaChart = null;
 let comparacionChart = null;
-const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv';
+let intervaloActualizacion;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
@@ -76,8 +76,8 @@ function setupEventListeners() {
   document.getElementById('exportPdfBtn').addEventListener('click', exportarPDF);
   document.getElementById('downloadTemplate').addEventListener('click', descargarPlantilla);
   document.getElementById('googleSheetsBtn').addEventListener('click', conectarGoogleSheets);
-  document.getElementById('closeSheetsModal').addEventListener('click', cerrarSheetsModal);
-  document.getElementById('generateFromSheets').addEventListener('click', generarDesdeSheets);
+  document.getElementById('generateAnalysisFromSheets').addEventListener('click', cargarDatosDesdeSheets);
+  document.getElementById('refreshDataBtn').addEventListener('click', actualizarDatos);
 }
 
 function setupFileInput() {
@@ -122,14 +122,6 @@ function cerrarModal() {
   document.getElementById('excelModal').style.display = 'none';
 }
 
-function abrirSheetsModal() {
-  document.getElementById('googleSheetsModal').style.display = 'flex';
-}
-
-function cerrarSheetsModal() {
-  document.getElementById('googleSheetsModal').style.display = 'none';
-}
-
 function generarAnalisis() {
   if (excelData.length === 0) {
     mostrarNotificacion('No hay datos para analizar', true);
@@ -138,17 +130,6 @@ function generarAnalisis() {
   
   procesarDatosAnalisis(excelData);
   cerrarModal();
-  mostrarAnalisis();
-}
-
-function generarDesdeSheets() {
-  if (excelData.length === 0) {
-    mostrarNotificacion('No hay datos para analizar', true);
-    return;
-  }
-  
-  procesarDatosAnalisis(excelData);
-  cerrarSheetsModal();
   mostrarAnalisis();
 }
 
@@ -195,135 +176,19 @@ function procesarDatosAnalisis(data) {
   alertBox.innerHTML = hasAlerts ? alertHTML : '<p>No hay alertas significativas</p>';
 }
 
-async function conectarGoogleSheets() {
-  try {
-    // Mostrar estado de carga
-    const boton = document.getElementById('googleSheetsBtn');
-    const textoOriginal = boton.textContent;
-    boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
-    boton.disabled = true;
-    
-    // Cargar datos
-    const datos = await cargarDatosGoogleSheets();
-    
-    if (!datos || datos.length === 0) {
-      throw new Error('No se encontraron datos en el Sheet');
-    }
-    
-    // Guardar datos globalmente
-    excelData = datos;
-    
-    // Mostrar vista previa
-    mostrarDatosSheetsEnModal(datos);
-    abrirSheetsModal();
-    
-  } catch (error) {
-    console.error("Error en conectarGoogleSheets:", error);
-    mostrarNotificacion('Error al conectar con Google Sheets: ' + error.message, true);
-  } finally {
-    // Restaurar botón
-    const boton = document.getElementById('googleSheetsBtn');
-    boton.textContent = textoOriginal;
-    boton.disabled = false;
-  }
-}
-
-async function cargarDatosGoogleSheets() {
-  try {
-    const timestamp = Date.now();
-    const url = `${GOOGLE_SHEET_URL}&t=${timestamp}`;
-    
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    
-    const csvData = await response.text();
-    return procesarCSV(csvData);
-  } catch (error) {
-    console.error("Error al cargar Google Sheets:", error);
-    throw error;
-  }
-}
-
-function procesarCSV(csv) {
-  return csv
-    .split('\n')
-    .slice(1)
-    .filter(row => row.trim() !== '')
-    .map(row => {
-      const [item, planificado, real] = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-      return {
-        item: item?.replace(/^"|"$/g, '').trim() || '',
-        planificado: planificado?.replace(/[^0-9.-]/g, '') || '0',
-        real: real?.replace(/[^0-9.-]/g, '') || '0'
-      };
-    });
-}
-
-function mostrarDatosSheetsEnModal(datos) {
-  const preview = document.getElementById('sheetsPreview');
-  preview.innerHTML = '';
-  
-  if (!datos || datos.length === 0) {
-    preview.innerHTML = '<p>No se encontraron datos en el Sheet</p>';
-    return;
-  }
-
-  // Crear tabla HTML
-  const table = document.createElement('table');
-  
-  // Encabezados
-  const thead = document.createElement('thead');
-  thead.innerHTML = `
-    <tr>
-      <th>Ítem</th>
-      <th>Planificado</th>
-      <th>Real</th>
-    </tr>
-  `;
-  table.appendChild(thead);
-  
-  // Datos (mostramos solo las primeras 10 filas)
-  const tbody = document.createElement('tbody');
-  datos.slice(0, 10).forEach(row => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${row.item || ''}</td>
-      <td>S/${parseFloat(row.planificado).toLocaleString('es-PE') || '0'}</td>
-      <td>S/${parseFloat(row.real).toLocaleString('es-PE') || '0'}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-  
-  if (datos.length > 10) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="3" style="text-align: center;">... y ${datos.length - 10} filas más</td>`;
-    tbody.appendChild(tr);
-  }
-  
-  table.appendChild(tbody);
-  preview.appendChild(table);
-}
-
-function mostrarNotificacion(mensaje, esError = false) {
-  const notificacion = document.createElement('div');
-  notificacion.className = `notificacion ${esError ? 'error' : 'exito'}`;
-  notificacion.textContent = mensaje;
-  document.body.appendChild(notificacion);
-  
-  setTimeout(() => document.body.removeChild(notificacion), 3000);
-}
-
 function toggleDropdown(id) {
   const dropdown = document.getElementById(id);
   dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
 }
 
 function mostrarLogin() {
+  if (intervaloActualizacion) clearInterval(intervaloActualizacion);
   ocultarTodasSecciones();
   document.getElementById('loginSection').style.display = 'flex';
 }
 
 function mostrarPresupuesto() {
+  if (intervaloActualizacion) clearInterval(intervaloActualizacion);
   ocultarTodasSecciones();
   document.getElementById('presupuestoSection').style.display = 'block';
   setupFileInput();
@@ -364,31 +229,43 @@ function inicializarGraficos() {
   if (tendenciaChart) tendenciaChart.destroy();
   if (comparacionChart) comparacionChart.destroy();
 
-  // Usar datos reales si existen, o datos de ejemplo como fallback
-  const datos = excelData.length > 0 ? {
-    items: excelData.slice(1).map(row => row.item).filter(Boolean),
-    planificado: excelData.slice(1).map(row => parseFloat(row.planificado) || 0),
-    real: excelData.slice(1).map(row => parseFloat(row.real) || 0)
-  } : {
-    items: ['Materiales', 'Mano de obra', 'Equipos', 'Subcontratos', 'Gastos generales'],
-    planificado: [15000, 20000, 8000, 12000, 5000],
-    real: [18500, 22300, 7200, 15750, 4800]
+  // Procesar datos para gráficos
+  const datosGraficos = {
+    items: [],
+    planificado: [],
+    real: []
   };
 
-  // Gráfico de tendencia
+  // Filtrar y procesar datos (excluyendo filas vacías o sin item)
+  excelData.slice(1).forEach(row => {
+    if (row.item && row.item.toString().trim() !== '') {
+      datosGraficos.items.push(row.item);
+      datosGraficos.planificado.push(parseFloat(row.planificado) || 0);
+      datosGraficos.real.push(parseFloat(row.real) || 0);
+    }
+  });
+
+  // Si no hay datos, usar valores por defecto
+  if (datosGraficos.items.length === 0) {
+    datosGraficos.items = ['Materiales', 'Mano de obra', 'Equipos', 'Subcontratos', 'Gastos generales'];
+    datosGraficos.planificado = [15000, 20000, 8000, 12000, 5000];
+    datosGraficos.real = [18500, 22300, 7200, 15750, 4800];
+  }
+
+  // Gráfico de tendencia (usar primeros 6 meses)
   const datosTendencia = {
     labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
     datasets: [
       {
         label: 'Planificado',
-        data: datos.planificado.slice(0, 6).map(val => val * 0.8 + val * 0.4 * Math.random()),
+        data: datosGraficos.planificado.slice(0, 6),
         borderColor: '#4e4376',
         backgroundColor: 'rgba(78, 67, 118, 0.1)',
         tension: 0.3
       },
       {
         label: 'Real',
-        data: datos.real.slice(0, 6).map(val => val * 0.8 + val * 0.4 * Math.random()),
+        data: datosGraficos.real.slice(0, 6),
         borderColor: '#2b5876',
         backgroundColor: 'rgba(43, 88, 118, 0.1)',
         tension: 0.3
@@ -396,23 +273,24 @@ function inicializarGraficos() {
     ]
   };
 
-  // Gráfico de comparación (usamos los primeros 5 items)
+  // Gráfico de comparación (usar primeros 5 items)
   const datosComparacion = {
-    labels: datos.items.slice(0, 5),
+    labels: datosGraficos.items.slice(0, 5),
     datasets: [
       {
         label: 'Planificado',
-        data: datos.planificado.slice(0, 5),
+        data: datosGraficos.planificado.slice(0, 5),
         backgroundColor: '#4e4376'
       },
       {
         label: 'Real',
-        data: datos.real.slice(0, 5),
+        data: datosGraficos.real.slice(0, 5),
         backgroundColor: '#2b5876'
       }
     ]
   };
 
+  // Crear gráficos
   tendenciaChart = new Chart(
     document.getElementById('tendenciaChart'),
     {
@@ -491,6 +369,90 @@ function mostrarRegistro() {
 
 function cerrarSesion() {
   mostrarLogin();
+}
+
+// Funciones para Google Sheets
+function conectarGoogleSheets() {
+  // Abrir el Sheet específico en nueva pestaña
+  const sheetUrl = 'https://docs.google.com/spreadsheets/d/1UR2uZN4uSN6sK_7DhIF4ls16ipNXdcQbz5n23puVBwI/edit#gid=0';
+  window.open(sheetUrl, '_blank');
+  
+  // Mostrar notificación
+  mostrarNotificacion('Complete sus datos en Google Sheets y luego haga clic en "Generar análisis"');
+}
+
+async function cargarDatosDesdeSheets() {
+  try {
+    // URL pública de publicación (misma que Nayeli)
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv';
+    
+    // Mostrar carga
+    const boton = document.getElementById('generateAnalysisFromSheets');
+    const textoOriginal = boton.textContent;
+    boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+    boton.disabled = true;
+    
+    // Obtener datos
+    const response = await fetch(csvUrl);
+    const csvData = await response.text();
+    
+    // Convertir CSV a JSON
+    excelData = csvData.split('\n').slice(1).filter(row => row.trim() !== '').map(row => {
+      const [item, planificado, real] = row.split(',');
+      return {
+        item: item?.replace(/"/g, '').trim() || '',
+        planificado: parseFloat(planificado) || 0,
+        real: parseFloat(real) || 0
+      };
+    });
+    
+    // Mostrar análisis
+    mostrarAnalisis();
+    
+    // Configurar actualización automática cada minuto
+    if (intervaloActualizacion) clearInterval(intervaloActualizacion);
+    intervaloActualizacion = setInterval(actualizarDatos, 60000);
+    
+  } catch (error) {
+    console.error("Error al cargar Google Sheets:", error);
+    mostrarNotificacion('Error al cargar datos. Verifique la conexión', true);
+  } finally {
+    const boton = document.getElementById('generateAnalysisFromSheets');
+    if (boton) {
+      boton.textContent = textoOriginal;
+      boton.disabled = false;
+    }
+  }
+}
+
+async function actualizarDatos() {
+  try {
+    const boton = document.getElementById('refreshDataBtn');
+    boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+    boton.disabled = true;
+    
+    await cargarDatosDesdeSheets();
+    mostrarNotificacion('Datos actualizados correctamente');
+    
+  } catch (error) {
+    console.error("Error al actualizar:", error);
+    mostrarNotificacion('Error al actualizar datos', true);
+  } finally {
+    const boton = document.getElementById('refreshDataBtn');
+    if (boton) {
+      boton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar Datos';
+      boton.disabled = false;
+    }
+  }
+}
+
+function mostrarNotificacion(mensaje, esError = false) {
+  const notificacion = document.createElement('div');
+  notificacion.className = `notificacion ${esError ? 'error' : 'exito'}`;
+  notificacion.textContent = mensaje;
+  document.body.appendChild(notificacion);
+  
+  setTimeout(() => document.body.removeChild(notificacion), 3000);
 }
 
 // Iniciar
