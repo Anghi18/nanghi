@@ -177,6 +177,17 @@ body {
   color: white;
 }
 
+.generate-btn {
+  background-color: #4e4376;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 1rem;
+  width: 100%;
+}
+
 /* Modal */
 .modal {
   display: none;
@@ -225,28 +236,6 @@ body {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
-}
-
-.generate-btn {
-  background-color: #4e4376;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-top: 1rem;
-  width: 100%;
-}
-
-/* Spinner para botón Google Sheets */
-.fa-spinner {
-  margin-right: 8px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* Análisis */
@@ -382,6 +371,47 @@ th {
 canvas {
   max-width: 100%;
   height: auto !important;
+}
+
+/* Footer de análisis */
+.analisis-footer {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.refresh-btn {
+  background: #2b5876;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.refresh-btn:hover {
+  background: #4e4376;
+}
+
+.refresh-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Animaciones */
+.fa-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Notificaciones */
