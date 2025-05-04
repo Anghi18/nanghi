@@ -3,6 +3,7 @@ let currentFileInput = null;
 let excelData = [];
 let tendenciaChart = null;
 let comparacionChart = null;
+const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv';
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
@@ -75,6 +76,8 @@ function setupEventListeners() {
   document.getElementById('exportPdfBtn').addEventListener('click', exportarPDF);
   document.getElementById('downloadTemplate').addEventListener('click', descargarPlantilla);
   document.getElementById('googleSheetsBtn').addEventListener('click', conectarGoogleSheets);
+  document.getElementById('closeSheetsModal').addEventListener('click', cerrarSheetsModal);
+  document.getElementById('generateFromSheets').addEventListener('click', generarDesdeSheets);
 }
 
 function setupFileInput() {
@@ -92,10 +95,6 @@ function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  const generateBtn = document.getElementById('generateAnalysis');
-  generateBtn.disabled = true;
-  generateBtn.textContent = 'Procesando...';
-
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -103,25 +102,13 @@ function handleFileUpload(e) {
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       
-      // Guardar datos crudos y procesados
-      window.excelRawData = firstSheet;
       excelData = XLSX.utils.sheet_to_json(firstSheet, { header: ['item', 'planificado', 'real'] });
-      
-      // Validar estructura del archivo
-      const headers = Object.keys(excelData[0] || {});
-      if (!headers.includes('item') || !headers.includes('planificado') || !headers.includes('real')) {
-        alert('El archivo no tiene la estructura esperada. Por favor use la plantilla.');
-        return;
-      }
-      
       const html = XLSX.utils.sheet_to_html(firstSheet);
+      
       document.getElementById('excelPreview').innerHTML = html;
       abrirModal();
     } catch (error) {
       alert('Error al leer el archivo: ' + error.message);
-    } finally {
-      generateBtn.disabled = false;
-      generateBtn.textContent = 'Generar análisis';
     }
   };
   reader.readAsArrayBuffer(file);
@@ -135,14 +122,33 @@ function cerrarModal() {
   document.getElementById('excelModal').style.display = 'none';
 }
 
+function abrirSheetsModal() {
+  document.getElementById('googleSheetsModal').style.display = 'flex';
+}
+
+function cerrarSheetsModal() {
+  document.getElementById('googleSheetsModal').style.display = 'none';
+}
+
 function generarAnalisis() {
   if (excelData.length === 0) {
-    alert('No hay datos para analizar');
+    mostrarNotificacion('No hay datos para analizar', true);
     return;
   }
   
   procesarDatosAnalisis(excelData);
   cerrarModal();
+  mostrarAnalisis();
+}
+
+function generarDesdeSheets() {
+  if (excelData.length === 0) {
+    mostrarNotificacion('No hay datos para analizar', true);
+    return;
+  }
+  
+  procesarDatosAnalisis(excelData);
+  cerrarSheetsModal();
   mostrarAnalisis();
 }
 
@@ -154,14 +160,6 @@ function procesarDatosAnalisis(data) {
   
   tbody.innerHTML = '';
   
-  // Datos para gráficos
-  const datosGraficos = {
-    items: [],
-    planificado: [],
-    real: [],
-    desviacion: []
-  };
-  
   data.slice(1).forEach(row => {
     if (!row.item || row.item.toString().trim() === '') return;
     
@@ -169,12 +167,6 @@ function procesarDatosAnalisis(data) {
     const cleanReal = parseFloat(row.real?.toString().replace(/[^0-9.-]/g, '')) || 0;
     const diferencia = cleanReal - cleanPlanificado;
     const porcentaje = cleanPlanificado !== 0 ? ((diferencia / cleanPlanificado) * 100).toFixed(1) : 0;
-    
-    // Llenar datos para gráficos
-    datosGraficos.items.push(row.item);
-    datosGraficos.planificado.push(cleanPlanificado);
-    datosGraficos.real.push(cleanReal);
-    datosGraficos.desviacion.push(porcentaje);
     
     const rowHTML = `
       <tr>
@@ -201,9 +193,124 @@ function procesarDatosAnalisis(data) {
   
   alertHTML += '</ul>';
   alertBox.innerHTML = hasAlerts ? alertHTML : '<p>No hay alertas significativas</p>';
+}
+
+async function conectarGoogleSheets() {
+  try {
+    // Mostrar estado de carga
+    const boton = document.getElementById('googleSheetsBtn');
+    const textoOriginal = boton.textContent;
+    boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+    boton.disabled = true;
+    
+    // Cargar datos
+    const datos = await cargarDatosGoogleSheets();
+    
+    if (!datos || datos.length === 0) {
+      throw new Error('No se encontraron datos en el Sheet');
+    }
+    
+    // Guardar datos globalmente
+    excelData = datos;
+    
+    // Mostrar vista previa
+    mostrarDatosSheetsEnModal(datos);
+    abrirSheetsModal();
+    
+  } catch (error) {
+    console.error("Error en conectarGoogleSheets:", error);
+    mostrarNotificacion('Error al conectar con Google Sheets: ' + error.message, true);
+  } finally {
+    // Restaurar botón
+    const boton = document.getElementById('googleSheetsBtn');
+    boton.textContent = textoOriginal;
+    boton.disabled = false;
+  }
+}
+
+async function cargarDatosGoogleSheets() {
+  try {
+    const timestamp = Date.now();
+    const url = `${GOOGLE_SHEET_URL}&t=${timestamp}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const csvData = await response.text();
+    return procesarCSV(csvData);
+  } catch (error) {
+    console.error("Error al cargar Google Sheets:", error);
+    throw error;
+  }
+}
+
+function procesarCSV(csv) {
+  return csv
+    .split('\n')
+    .slice(1)
+    .filter(row => row.trim() !== '')
+    .map(row => {
+      const [item, planificado, real] = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+      return {
+        item: item?.replace(/^"|"$/g, '').trim() || '',
+        planificado: planificado?.replace(/[^0-9.-]/g, '') || '0',
+        real: real?.replace(/[^0-9.-]/g, '') || '0'
+      };
+    });
+}
+
+function mostrarDatosSheetsEnModal(datos) {
+  const preview = document.getElementById('sheetsPreview');
+  preview.innerHTML = '';
   
-  // Guardar datos para gráficos
-  window.datosParaGraficos = datosGraficos;
+  if (!datos || datos.length === 0) {
+    preview.innerHTML = '<p>No se encontraron datos en el Sheet</p>';
+    return;
+  }
+
+  // Crear tabla HTML
+  const table = document.createElement('table');
+  
+  // Encabezados
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr>
+      <th>Ítem</th>
+      <th>Planificado</th>
+      <th>Real</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+  
+  // Datos (mostramos solo las primeras 10 filas)
+  const tbody = document.createElement('tbody');
+  datos.slice(0, 10).forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.item || ''}</td>
+      <td>S/${parseFloat(row.planificado).toLocaleString('es-PE') || '0'}</td>
+      <td>S/${parseFloat(row.real).toLocaleString('es-PE') || '0'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  if (datos.length > 10) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="3" style="text-align: center;">... y ${datos.length - 10} filas más</td>`;
+    tbody.appendChild(tr);
+  }
+  
+  table.appendChild(tbody);
+  preview.appendChild(table);
+}
+
+function mostrarNotificacion(mensaje, esError = false) {
+  const notificacion = document.createElement('div');
+  notificacion.className = `notificacion ${esError ? 'error' : 'exito'}`;
+  notificacion.textContent = mensaje;
+  document.body.appendChild(notificacion);
+  
+  setTimeout(() => document.body.removeChild(notificacion), 3000);
 }
 
 function toggleDropdown(id) {
@@ -237,10 +344,9 @@ function mostrarReportes() {
   document.getElementById('reportesSection').style.display = 'block';
   document.getElementById('generateReportBtn').style.display = 'none';
   
-  // Destruir gráficos existentes y crear nuevos con datos actualizados
-  if (tendenciaChart) tendenciaChart.destroy();
-  if (comparacionChart) comparacionChart.destroy();
-  inicializarGraficos();
+  if (!window.chartsInitialized) {
+    inicializarGraficos();
+  }
 }
 
 function ocultarTodasSecciones() {
@@ -255,15 +361,21 @@ function generarReporte() {
 }
 
 function inicializarGraficos() {
+  if (tendenciaChart) tendenciaChart.destroy();
+  if (comparacionChart) comparacionChart.destroy();
+
   // Usar datos reales si existen, o datos de ejemplo como fallback
-  const datos = window.datosParaGraficos || {
+  const datos = excelData.length > 0 ? {
+    items: excelData.slice(1).map(row => row.item).filter(Boolean),
+    planificado: excelData.slice(1).map(row => parseFloat(row.planificado) || 0),
+    real: excelData.slice(1).map(row => parseFloat(row.real) || 0)
+  } : {
     items: ['Materiales', 'Mano de obra', 'Equipos', 'Subcontratos', 'Gastos generales'],
     planificado: [15000, 20000, 8000, 12000, 5000],
-    real: [18500, 22300, 7200, 15750, 4800],
-    desviacion: [23.3, 11.5, -10.0, 31.3, -4.0]
+    real: [18500, 22300, 7200, 15750, 4800]
   };
 
-  // Gráfico de tendencia (usamos meses como ejemplo)
+  // Gráfico de tendencia
   const datosTendencia = {
     labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
     datasets: [
@@ -371,11 +483,6 @@ function exportarPDF() {
 function descargarPlantilla() {
   alert("Descargando plantilla...");
   // Implementar descarga real aquí
-}
-
-function conectarGoogleSheets() {
-  alert("Conectando a Google Sheets...");
-  // Implementar conexión real aquí
 }
 
 function mostrarRegistro() {
