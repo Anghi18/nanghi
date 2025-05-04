@@ -2,7 +2,8 @@
 let currentFileInput = null;
 let appData = {
   source: null, // 'excel' o 'sheets'
-  data: []
+  data: [],
+  chartsInitialized: false
 };
 let tendenciaChart = null;
 let comparacionChart = null;
@@ -107,6 +108,7 @@ function handleFileUpload(e) {
       
       appData.source = 'excel';
       appData.data = XLSX.utils.sheet_to_json(firstSheet, { header: ['item', 'planificado', 'real'] });
+      appData.chartsInitialized = false;
       
       const html = XLSX.utils.sheet_to_html(firstSheet);
       document.getElementById('excelPreview').innerHTML = html;
@@ -200,13 +202,15 @@ function mostrarRegistro() {
   ocultarTodasSecciones();
   
   const loginSection = document.getElementById('loginSection');
+  loginSection.innerHTML = '';
+  
   const registerHTML = `
     <div class="login-box">
       <div class="login-header">
         <img src="assets/logo.jpeg" alt="Logo" class="logo">
         <h2>Crear nueva cuenta</h2>
       </div>
-      <form id="registerForm">
+      <form id="registerForm" class="register-form">
         <input type="text" id="registerName" placeholder="Nombre completo" required>
         <input type="email" id="registerEmail" placeholder="Correo electrónico" required>
         <input type="password" id="registerPassword" placeholder="Contraseña" required>
@@ -220,7 +224,7 @@ function mostrarRegistro() {
     </div>
   `;
   
-  loginSection.innerHTML = registerHTML;
+  loginSection.insertAdjacentHTML('beforeend', registerHTML);
   
   document.getElementById('registerForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -276,8 +280,12 @@ function mostrarReportes() {
   document.getElementById('reportesSection').style.display = 'block';
   document.getElementById('generateReportBtn').style.display = 'none';
   
-  if (!window.chartsInitialized) {
+  if (!appData.chartsInitialized) {
     inicializarGraficos();
+  } else {
+    // Actualizar gráficos si ya existen
+    if (tendenciaChart) tendenciaChart.update();
+    if (comparacionChart) comparacionChart.update();
   }
 }
 
@@ -296,20 +304,17 @@ function inicializarGraficos() {
   if (tendenciaChart) tendenciaChart.destroy();
   if (comparacionChart) comparacionChart.destroy();
 
-  // Verificar si hay datos disponibles
   if (!appData.data || appData.data.length === 0) {
     mostrarNotificacion('No hay datos disponibles para generar gráficos', true);
     return;
   }
 
-  // Procesar datos para gráficos
   const datosGraficos = {
     items: [],
     planificado: [],
     real: []
   };
 
-  // Filtrar y procesar datos (excluyendo filas vacías o sin item)
   appData.data.slice(1).forEach(row => {
     if (row.item && row.item.toString().trim() !== '') {
       datosGraficos.items.push(row.item);
@@ -318,75 +323,67 @@ function inicializarGraficos() {
     }
   });
 
-  // Verificar si hay datos válidos después del procesamiento
   if (datosGraficos.items.length === 0) {
     mostrarNotificacion('Los datos no tienen el formato esperado', true);
     return;
   }
 
-  // Gráfico de tendencia (usar primeros 6 items o todos si hay menos)
+  // Gráfico de tendencia
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
   const labelsTendencia = meses.slice(0, Math.min(datosGraficos.items.length, 6));
   
-  const datosTendencia = {
-    labels: labelsTendencia,
-    datasets: [
-      {
-        label: 'Planificado',
-        data: datosGraficos.planificado.slice(0, 6),
-        borderColor: '#4e4376',
-        backgroundColor: 'rgba(78, 67, 118, 0.1)',
-        tension: 0.3
-      },
-      {
-        label: 'Real',
-        data: datosGraficos.real.slice(0, 6),
-        borderColor: '#2b5876',
-        backgroundColor: 'rgba(43, 88, 118, 0.1)',
-        tension: 0.3
-      }
-    ]
-  };
-
-  // Gráfico de comparación (usar primeros 5 items o todos si hay menos)
-  const itemsComparacion = datosGraficos.items.slice(0, 5);
-  
-  const datosComparacion = {
-    labels: itemsComparacion,
-    datasets: [
-      {
-        label: 'Planificado',
-        data: datosGraficos.planificado.slice(0, 5),
-        backgroundColor: '#4e4376'
-      },
-      {
-        label: 'Real',
-        data: datosGraficos.real.slice(0, 5),
-        backgroundColor: '#2b5876'
-      }
-    ]
-  };
-
-  // Crear gráficos
   tendenciaChart = new Chart(
     document.getElementById('tendenciaChart'),
     {
       type: 'line',
-      data: datosTendencia,
+      data: {
+        labels: labelsTendencia,
+        datasets: [
+          {
+            label: 'Planificado',
+            data: datosGraficos.planificado.slice(0, 6),
+            borderColor: '#4e4376',
+            backgroundColor: 'rgba(78, 67, 118, 0.1)',
+            tension: 0.3
+          },
+          {
+            label: 'Real',
+            data: datosGraficos.real.slice(0, 6),
+            borderColor: '#2b5876',
+            backgroundColor: 'rgba(43, 88, 118, 0.1)',
+            tension: 0.3
+          }
+        ]
+      },
       options: { responsive: true }
     }
   );
 
+  // Gráfico de comparación
   comparacionChart = new Chart(
     document.getElementById('comparacionChart'),
     {
       type: 'bar',
-      data: datosComparacion,
+      data: {
+        labels: datosGraficos.items.slice(0, 5),
+        datasets: [
+          {
+            label: 'Planificado',
+            data: datosGraficos.planificado.slice(0, 5),
+            backgroundColor: '#4e4376'
+          },
+          {
+            label: 'Real',
+            data: datosGraficos.real.slice(0, 5),
+            backgroundColor: '#2b5876'
+          }
+        ]
+      },
       options: { responsive: true }
     }
   );
 
-  window.chartsInitialized = true;
+  appData.chartsInitialized = true;
 }
 
 function exportarPDF() {
@@ -394,7 +391,6 @@ function exportarPDF() {
   exportBtn.disabled = true;
   exportBtn.textContent = 'Generando PDF...';
 
-  // Forzar renderizado
   if (tendenciaChart) {
     tendenciaChart.update();
     tendenciaChart.render();
@@ -404,7 +400,6 @@ function exportarPDF() {
     comparacionChart.render();
   }
 
-  // Ocultar elementos
   const elementsToHide = document.querySelectorAll('.reportes-actions, .user-menu');
   elementsToHide.forEach(el => el.style.opacity = '0');
 
@@ -473,6 +468,7 @@ async function cargarDatosDesdeSheets() {
       };
     });
     
+    appData.chartsInitialized = false;
     mostrarAnalisis();
     
     if (intervaloActualizacion) clearInterval(intervaloActualizacion);
