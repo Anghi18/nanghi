@@ -1,6 +1,9 @@
 // Variables globales
 let currentFileInput = null;
-let excelData = [];
+let appData = {
+  source: null, // 'excel' o 'sheets'
+  data: []
+};
 let tendenciaChart = null;
 let comparacionChart = null;
 let intervaloActualizacion;
@@ -102,13 +105,14 @@ function handleFileUpload(e) {
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       
-      excelData = XLSX.utils.sheet_to_json(firstSheet, { header: ['item', 'planificado', 'real'] });
-      const html = XLSX.utils.sheet_to_html(firstSheet);
+      appData.source = 'excel';
+      appData.data = XLSX.utils.sheet_to_json(firstSheet, { header: ['item', 'planificado', 'real'] });
       
+      const html = XLSX.utils.sheet_to_html(firstSheet);
       document.getElementById('excelPreview').innerHTML = html;
       abrirModal();
     } catch (error) {
-      alert('Error al leer el archivo: ' + error.message);
+      mostrarNotificacion('Error al leer el archivo: ' + error.message, true);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -123,12 +127,12 @@ function cerrarModal() {
 }
 
 function generarAnalisis() {
-  if (excelData.length === 0) {
+  if (appData.data.length === 0) {
     mostrarNotificacion('No hay datos para analizar', true);
     return;
   }
   
-  procesarDatosAnalisis(excelData);
+  procesarDatosAnalisis(appData.data);
   cerrarModal();
   mostrarAnalisis();
 }
@@ -140,6 +144,11 @@ function procesarDatosAnalisis(data) {
   let hasAlerts = false;
   
   tbody.innerHTML = '';
+  
+  if (!data || data.length === 0) {
+    alertBox.innerHTML = '<p>No hay datos para mostrar</p>';
+    return;
+  }
   
   data.slice(1).forEach(row => {
     if (!row.item || row.item.toString().trim() === '') return;
@@ -187,6 +196,60 @@ function mostrarLogin() {
   document.getElementById('loginSection').style.display = 'flex';
 }
 
+function mostrarRegistro() {
+  ocultarTodasSecciones();
+  
+  const loginSection = document.getElementById('loginSection');
+  const registerHTML = `
+    <div class="login-box">
+      <div class="login-header">
+        <img src="assets/logo.jpeg" alt="Logo" class="logo">
+        <h2>Crear nueva cuenta</h2>
+      </div>
+      <form id="registerForm">
+        <input type="text" id="registerName" placeholder="Nombre completo" required>
+        <input type="email" id="registerEmail" placeholder="Correo electrónico" required>
+        <input type="password" id="registerPassword" placeholder="Contraseña" required>
+        <input type="password" id="registerConfirmPassword" placeholder="Confirmar contraseña" required>
+        <button type="submit">Registrarse</button>
+      </form>
+      <div class="new-user">
+        <p>¿Ya tienes cuenta?</p>
+        <button id="loginBtn">Iniciar sesión</button>
+      </div>
+    </div>
+  `;
+  
+  loginSection.innerHTML = registerHTML;
+  
+  document.getElementById('registerForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    registrarUsuario();
+  });
+  
+  document.getElementById('loginBtn').addEventListener('click', mostrarLogin);
+}
+
+function registrarUsuario() {
+  const name = document.getElementById('registerName').value;
+  const email = document.getElementById('registerEmail').value;
+  const password = document.getElementById('registerPassword').value;
+  const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+  if (password !== confirmPassword) {
+    mostrarNotificacion('Las contraseñas no coinciden', true);
+    return;
+  }
+
+  if (password.length < 6) {
+    mostrarNotificacion('La contraseña debe tener al menos 6 caracteres', true);
+    return;
+  }
+
+  mostrarNotificacion('Registro exitoso. Ahora puedes iniciar sesión');
+  mostrarLogin();
+}
+
 function mostrarPresupuesto() {
   if (intervaloActualizacion) clearInterval(intervaloActualizacion);
   ocultarTodasSecciones();
@@ -199,8 +262,12 @@ function mostrarAnalisis() {
   document.getElementById('analisisSection').style.display = 'block';
   document.getElementById('generateReportBtn').style.display = 'block';
   
-  if (excelData.length > 0) {
-    procesarDatosAnalisis(excelData);
+  // Mostrar u ocultar botón de actualización según el origen de los datos
+  const refreshBtn = document.getElementById('refreshDataBtn');
+  refreshBtn.style.display = appData.source === 'sheets' ? 'block' : 'none';
+  
+  if (appData.data.length > 0) {
+    procesarDatosAnalisis(appData.data);
   }
 }
 
@@ -229,6 +296,12 @@ function inicializarGraficos() {
   if (tendenciaChart) tendenciaChart.destroy();
   if (comparacionChart) comparacionChart.destroy();
 
+  // Verificar si hay datos disponibles
+  if (!appData.data || appData.data.length === 0) {
+    mostrarNotificacion('No hay datos disponibles para generar gráficos', true);
+    return;
+  }
+
   // Procesar datos para gráficos
   const datosGraficos = {
     items: [],
@@ -237,7 +310,7 @@ function inicializarGraficos() {
   };
 
   // Filtrar y procesar datos (excluyendo filas vacías o sin item)
-  excelData.slice(1).forEach(row => {
+  appData.data.slice(1).forEach(row => {
     if (row.item && row.item.toString().trim() !== '') {
       datosGraficos.items.push(row.item);
       datosGraficos.planificado.push(parseFloat(row.planificado) || 0);
@@ -245,16 +318,18 @@ function inicializarGraficos() {
     }
   });
 
-  // Si no hay datos, usar valores por defecto
+  // Verificar si hay datos válidos después del procesamiento
   if (datosGraficos.items.length === 0) {
-    datosGraficos.items = ['Materiales', 'Mano de obra', 'Equipos', 'Subcontratos', 'Gastos generales'];
-    datosGraficos.planificado = [15000, 20000, 8000, 12000, 5000];
-    datosGraficos.real = [18500, 22300, 7200, 15750, 4800];
+    mostrarNotificacion('Los datos no tienen el formato esperado', true);
+    return;
   }
 
-  // Gráfico de tendencia (usar primeros 6 meses)
+  // Gráfico de tendencia (usar primeros 6 items o todos si hay menos)
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+  const labelsTendencia = meses.slice(0, Math.min(datosGraficos.items.length, 6));
+  
   const datosTendencia = {
-    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+    labels: labelsTendencia,
     datasets: [
       {
         label: 'Planificado',
@@ -273,9 +348,11 @@ function inicializarGraficos() {
     ]
   };
 
-  // Gráfico de comparación (usar primeros 5 items)
+  // Gráfico de comparación (usar primeros 5 items o todos si hay menos)
+  const itemsComparacion = datosGraficos.items.slice(0, 5);
+  
   const datosComparacion = {
-    labels: datosGraficos.items.slice(0, 5),
+    labels: itemsComparacion,
     datasets: [
       {
         label: 'Planificado',
@@ -349,7 +426,7 @@ function exportarPDF() {
       pdf.save('reporte_nanghi.pdf');
     }).catch(err => {
       console.error('Error:', err);
-      alert('Error al generar PDF. Por favor, intente nuevamente.');
+      mostrarNotificacion('Error al generar PDF. Por favor, intente nuevamente.', true);
     }).finally(() => {
       elementsToHide.forEach(el => el.style.opacity = '1');
       exportBtn.disabled = false;
@@ -363,41 +440,31 @@ function descargarPlantilla() {
   // Implementar descarga real aquí
 }
 
-function mostrarRegistro() {
-  alert("Función de registro en desarrollo");
-}
-
 function cerrarSesion() {
   mostrarLogin();
 }
 
 // Funciones para Google Sheets
 function conectarGoogleSheets() {
-  // Abrir el Sheet específico en nueva pestaña
   const sheetUrl = 'https://docs.google.com/spreadsheets/d/1UR2uZN4uSN6sK_7DhIF4ls16ipNXdcQbz5n23puVBwI/edit#gid=0';
   window.open(sheetUrl, '_blank');
-  
-  // Mostrar notificación
   mostrarNotificacion('Complete sus datos en Google Sheets y luego haga clic en "Generar análisis"');
 }
 
 async function cargarDatosDesdeSheets() {
   try {
-    // URL pública de publicación (misma que Nayeli)
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv';
     
-    // Mostrar carga
     const boton = document.getElementById('generateAnalysisFromSheets');
     const textoOriginal = boton.textContent;
     boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
     boton.disabled = true;
     
-    // Obtener datos
     const response = await fetch(csvUrl);
     const csvData = await response.text();
     
-    // Convertir CSV a JSON
-    excelData = csvData.split('\n').slice(1).filter(row => row.trim() !== '').map(row => {
+    appData.source = 'sheets';
+    appData.data = csvData.split('\n').slice(1).filter(row => row.trim() !== '').map(row => {
       const [item, planificado, real] = row.split(',');
       return {
         item: item?.replace(/"/g, '').trim() || '',
@@ -406,10 +473,8 @@ async function cargarDatosDesdeSheets() {
       };
     });
     
-    // Mostrar análisis
     mostrarAnalisis();
     
-    // Configurar actualización automática cada minuto
     if (intervaloActualizacion) clearInterval(intervaloActualizacion);
     intervaloActualizacion = setInterval(actualizarDatos, 60000);
     
