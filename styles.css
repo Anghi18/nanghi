@@ -173,7 +173,7 @@ body {
 }
 
 .google-btn {
-  background: #a1a1a1;
+  background: #db4437;
   color: white;
 }
 
@@ -236,6 +236,17 @@ body {
   cursor: pointer;
   margin-top: 1rem;
   width: 100%;
+}
+
+/* Spinner para botón Google Sheets */
+.fa-spinner {
+  margin-right: 8px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Análisis */
@@ -371,6 +382,33 @@ th {
 canvas {
   max-width: 100%;
   height: auto !important;
+}
+
+/* Notificaciones */
+.notificacion {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: white;
+  z-index: 1000;
+  font-size: 14px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+.notificacion.exito {
+  background: #4CAF50;
+}
+
+.notificacion.error {
+  background: #f44336;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 /* PDF */
