@@ -1,9 +1,10 @@
 // Variables globales
 let currentFileInput = null;
 let appData = {
-  source: null, // 'excel' o 'sheets'
+  source: null,
   data: [],
-  chartsInitialized: false
+  chartsInitialized: false,
+  usuario: null
 };
 let tendenciaChart = null;
 let comparacionChart = null;
@@ -13,75 +14,84 @@ let intervaloActualizacion;
 document.addEventListener('DOMContentLoaded', function() {
   setupEventListeners();
   setupFileInput();
+  mostrarLogin();
 });
 
 function setupEventListeners() {
   // Login
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  document.getElementById('loginForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
-    mostrarPresupuesto();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (appData.usuario && appData.usuario.email === email && appData.usuario.password === password) {
+      mostrarNotificacion('Inicio de sesión exitoso');
+      mostrarPresupuesto();
+    } else {
+      mostrarNotificacion('Credenciales incorrectas', true);
+    }
   });
 
   // Registro
-  document.getElementById('registerBtn').addEventListener('click', mostrarRegistro);
+  document.getElementById('registerBtn')?.addEventListener('click', mostrarRegistro);
 
   // Menús
-  document.getElementById('userBtn').addEventListener('click', () => toggleDropdown('dropdownMenu'));
-  document.getElementById('menuBtn').addEventListener('click', () => toggleDropdown('dropdownMenu'));
-  document.getElementById('userBtnAnalisis').addEventListener('click', () => toggleDropdown('dropdownMenuAnalisis'));
-  document.getElementById('menuBtnAnalisis').addEventListener('click', () => toggleDropdown('dropdownMenuAnalisis'));
-  document.getElementById('userBtnReportes').addEventListener('click', () => toggleDropdown('dropdownMenuReportes'));
-  document.getElementById('menuBtnReportes').addEventListener('click', () => toggleDropdown('dropdownMenuReportes'));
+  document.getElementById('userBtn')?.addEventListener('click', () => toggleDropdown('dropdownMenu'));
+  document.getElementById('menuBtn')?.addEventListener('click', () => toggleDropdown('dropdownMenu'));
+  document.getElementById('userBtnAnalisis')?.addEventListener('click', () => toggleDropdown('dropdownMenuAnalisis'));
+  document.getElementById('menuBtnAnalisis')?.addEventListener('click', () => toggleDropdown('dropdownMenuAnalisis'));
+  document.getElementById('userBtnReportes')?.addEventListener('click', () => toggleDropdown('dropdownMenuReportes'));
+  document.getElementById('menuBtnReportes')?.addEventListener('click', () => toggleDropdown('dropdownMenuReportes'));
 
   // Navegación
-  document.getElementById('analisisLink').addEventListener('click', function(e) {
+  document.getElementById('analisisLink')?.addEventListener('click', function(e) {
     e.preventDefault();
     mostrarAnalisis();
   });
-  document.getElementById('reportesLink').addEventListener('click', function(e) {
+  document.getElementById('reportesLink')?.addEventListener('click', function(e) {
     e.preventDefault();
     mostrarReportes();
   });
-  document.getElementById('logoutLink').addEventListener('click', function(e) {
+  document.getElementById('logoutLink')?.addEventListener('click', function(e) {
     e.preventDefault();
     cerrarSesion();
   });
-  document.getElementById('presupuestoLink').addEventListener('click', function(e) {
+  document.getElementById('presupuestoLink')?.addEventListener('click', function(e) {
     e.preventDefault();
     mostrarPresupuesto();
   });
-  document.getElementById('reportesLinkAnalisis').addEventListener('click', function(e) {
+  document.getElementById('reportesLinkAnalisis')?.addEventListener('click', function(e) {
     e.preventDefault();
     mostrarReportes();
   });
-  document.getElementById('logoutLinkAnalisis').addEventListener('click', function(e) {
+  document.getElementById('logoutLinkAnalisis')?.addEventListener('click', function(e) {
     e.preventDefault();
     cerrarSesion();
   });
-  document.getElementById('presupuestoLinkReportes').addEventListener('click', function(e) {
+  document.getElementById('presupuestoLinkReportes')?.addEventListener('click', function(e) {
     e.preventDefault();
     mostrarPresupuesto();
   });
-  document.getElementById('analisisLinkReportes').addEventListener('click', function(e) {
+  document.getElementById('analisisLinkReportes')?.addEventListener('click', function(e) {
     e.preventDefault();
     mostrarAnalisis();
   });
-  document.getElementById('logoutLinkReportes').addEventListener('click', function(e) {
+  document.getElementById('logoutLinkReportes')?.addEventListener('click', function(e) {
     e.preventDefault();
     cerrarSesion();
   });
 
   // Botones
-  document.getElementById('backBtn').addEventListener('click', mostrarPresupuesto);
-  document.getElementById('volverBtn').addEventListener('click', mostrarAnalisis);
-  document.getElementById('closeModal').addEventListener('click', cerrarModal);
-  document.getElementById('generateAnalysis').addEventListener('click', generarAnalisis);
-  document.getElementById('generateReportBtn').addEventListener('click', generarReporte);
-  document.getElementById('exportPdfBtn').addEventListener('click', exportarPDF);
-  document.getElementById('downloadTemplate').addEventListener('click', descargarPlantilla);
-  document.getElementById('googleSheetsBtn').addEventListener('click', conectarGoogleSheets);
-  document.getElementById('generateAnalysisFromSheets').addEventListener('click', cargarDatosDesdeSheets);
-  document.getElementById('refreshDataBtn').addEventListener('click', actualizarDatos);
+  document.getElementById('backBtn')?.addEventListener('click', mostrarPresupuesto);
+  document.getElementById('volverBtn')?.addEventListener('click', mostrarAnalisis);
+  document.getElementById('closeModal')?.addEventListener('click', cerrarModal);
+  document.getElementById('generateAnalysis')?.addEventListener('click', generarAnalisis);
+  document.getElementById('generateReportBtn')?.addEventListener('click', generarReporte);
+  document.getElementById('exportPdfBtn')?.addEventListener('click', exportarPDF);
+  document.getElementById('downloadTemplate')?.addEventListener('click', descargarPlantilla);
+  document.getElementById('googleSheetsBtn')?.addEventListener('click', conectarGoogleSheets);
+  document.getElementById('generateAnalysisFromSheets')?.addEventListener('click', cargarDatosDesdeSheets);
+  document.getElementById('refreshDataBtn')?.addEventListener('click', actualizarDatos);
 }
 
 function setupFileInput() {
@@ -202,9 +212,8 @@ function mostrarRegistro() {
   ocultarTodasSecciones();
   
   const loginSection = document.getElementById('loginSection');
-  loginSection.innerHTML = ''; // Limpiar completamente
+  loginSection.innerHTML = '';
   
-  // Crear estructura completa del formulario de registro
   const registerHTML = `
     <div class="login-box">
       <div class="login-header">
@@ -225,13 +234,8 @@ function mostrarRegistro() {
     </div>
   `;
   
-  // Insertar el HTML
   loginSection.insertAdjacentHTML('beforeend', registerHTML);
   
-  // Asegurar que el contenedor se muestre
-  loginSection.style.display = 'flex';
-  
-  // Registrar eventos después de que el HTML existe
   document.getElementById('registerForm').addEventListener('submit', function(e) {
     e.preventDefault();
     registrarUsuario();
@@ -240,18 +244,11 @@ function mostrarRegistro() {
   document.getElementById('backToLoginBtn').addEventListener('click', mostrarLogin);
 }
 
-// Y actualiza la función registrarUsuario() así:
 function registrarUsuario() {
   const name = document.getElementById('registerName').value.trim();
   const email = document.getElementById('registerEmail').value.trim();
   const password = document.getElementById('registerPassword').value;
   const confirmPassword = document.getElementById('registerConfirmPassword').value;
-
-  // Validaciones
-  if (!name || !email || !password || !confirmPassword) {
-    mostrarNotificacion('Todos los campos son obligatorios', true);
-    return;
-  }
 
   if (password !== confirmPassword) {
     mostrarNotificacion('Las contraseñas no coinciden', true);
@@ -263,19 +260,16 @@ function registrarUsuario() {
     return;
   }
 
-  if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
-    mostrarNotificacion('Ingrese un correo electrónico válido', true);
-    return;
-  }
+  appData.usuario = {
+    nombre: name,
+    email: email,
+    password: password
+  };
 
-  // Simular registro exitoso
   mostrarNotificacion('Registro exitoso. Redirigiendo...');
-  
-  // Limpiar formulario
-  document.getElementById('registerForm').reset();
-  
-  // Mostrar login después de 2 segundos
-  setTimeout(mostrarLogin, 2000);
+  setTimeout(() => {
+    mostrarPresupuesto();
+  }, 1500);
 }
 
 function mostrarPresupuesto() {
@@ -290,7 +284,6 @@ function mostrarAnalisis() {
   document.getElementById('analisisSection').style.display = 'block';
   document.getElementById('generateReportBtn').style.display = 'block';
   
-  // Mostrar u ocultar botón de actualización según el origen de los datos
   const refreshBtn = document.getElementById('refreshDataBtn');
   refreshBtn.style.display = appData.source === 'sheets' ? 'block' : 'none';
   
@@ -304,10 +297,9 @@ function mostrarReportes() {
   document.getElementById('reportesSection').style.display = 'block';
   document.getElementById('generateReportBtn').style.display = 'none';
   
-  if (!appData.chartsInitialized) {
+  if (!appData.chartsInitialized && appData.data.length > 0) {
     inicializarGraficos();
-  } else {
-    // Actualizar gráficos si ya existen
+  } else if (appData.chartsInitialized) {
     if (tendenciaChart) tendenciaChart.update();
     if (comparacionChart) comparacionChart.update();
   }
@@ -455,15 +447,16 @@ function exportarPDF() {
 }
 
 function descargarPlantilla() {
-  alert("Descargando plantilla...");
+  mostrarNotificacion('Descargando plantilla...');
   // Implementar descarga real aquí
 }
 
 function cerrarSesion() {
+  appData.usuario = null;
+  mostrarNotificacion('Sesión cerrada');
   mostrarLogin();
 }
 
-// Funciones para Google Sheets
 function conectarGoogleSheets() {
   const sheetUrl = 'https://docs.google.com/spreadsheets/d/1UR2uZN4uSN6sK_7DhIF4ls16ipNXdcQbz5n23puVBwI/edit#gid=0';
   window.open(sheetUrl, '_blank');
@@ -472,7 +465,7 @@ function conectarGoogleSheets() {
 
 async function cargarDatosDesdeSheets() {
   try {
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv';
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv&t=' + Date.now();
     
     const boton = document.getElementById('generateAnalysisFromSheets');
     const textoOriginal = boton.textContent;
@@ -482,17 +475,21 @@ async function cargarDatosDesdeSheets() {
     const response = await fetch(csvUrl);
     const csvData = await response.text();
     
+    const lineas = csvData.split('\n')
+      .filter(linea => linea.trim() !== '')
+      .slice(1); // Elimina solo el encabezado
+    
     appData.source = 'sheets';
-    appData.data = csvData.split('\n').slice(1).filter(row => row.trim() !== '').map(row => {
-      const [item, planificado, real] = row.split(',');
+    appData.data = lineas.map(linea => {
+      const [item, planificado, real] = linea.split(',');
       return {
-        item: item?.replace(/"/g, '').trim() || '',
+        item: (item || '').replace(/"/g, '').trim(),
         planificado: parseFloat(planificado) || 0,
         real: parseFloat(real) || 0
       };
     });
     
-    appData.chartsInitialized = false;
+    mostrarNotificacion('Datos cargados correctamente');
     mostrarAnalisis();
     
     if (intervaloActualizacion) clearInterval(intervaloActualizacion);
@@ -500,7 +497,7 @@ async function cargarDatosDesdeSheets() {
     
   } catch (error) {
     console.error("Error al cargar Google Sheets:", error);
-    mostrarNotificacion('Error al cargar datos. Verifique la conexión', true);
+    mostrarNotificacion('Error al cargar datos. Verifica la conexión', true);
   } finally {
     const boton = document.getElementById('generateAnalysisFromSheets');
     if (boton) {
@@ -511,23 +508,46 @@ async function cargarDatosDesdeSheets() {
 }
 
 async function actualizarDatos() {
+  const boton = document.getElementById('refreshDataBtn');
+  if (!boton) return;
+  
   try {
-    const boton = document.getElementById('refreshDataBtn');
     boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
     boton.disabled = true;
     
-    await cargarDatosDesdeSheets();
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRe_SO-lnkG4p6whgSAS7mk8mGMGoruoi-AP_V1-wvFIcz8vhS2IY5EZT0LNldvG0-Vie62-4mvoRaB/pub?output=csv&t=' + Date.now();
+    
+    const response = await fetch(csvUrl);
+    if (!response.ok) throw new Error("Error en la respuesta");
+    
+    const csvData = await response.text();
+    const lineas = csvData.split('\n')
+      .filter(linea => linea.trim() !== '')
+      .slice(1);
+    
+    appData.data = lineas.map(linea => {
+      const [item, planificado, real] = linea.split(',');
+      return {
+        item: (item || '').replace(/"/g, '').trim(),
+        planificado: parseFloat(planificado) || 0,
+        real: parseFloat(real) || 0
+      };
+    });
+    
+    procesarDatosAnalisis(appData.data);
+    
+    if (appData.chartsInitialized) {
+      inicializarGraficos();
+    }
+    
     mostrarNotificacion('Datos actualizados correctamente');
     
   } catch (error) {
     console.error("Error al actualizar:", error);
     mostrarNotificacion('Error al actualizar datos', true);
   } finally {
-    const boton = document.getElementById('refreshDataBtn');
-    if (boton) {
-      boton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar Datos';
-      boton.disabled = false;
-    }
+    boton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar Datos';
+    boton.disabled = false;
   }
 }
 
@@ -537,8 +557,9 @@ function mostrarNotificacion(mensaje, esError = false) {
   notificacion.textContent = mensaje;
   document.body.appendChild(notificacion);
   
-  setTimeout(() => document.body.removeChild(notificacion), 3000);
+  setTimeout(() => {
+    if (notificacion.parentNode) {
+      document.body.removeChild(notificacion);
+    }
+  }, 3000);
 }
-
-// Iniciar
-mostrarLogin();
