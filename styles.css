@@ -461,7 +461,24 @@ canvas {
   }
 }
 
-/* Estilos para el formulario de registro */
+/* Estilos específicos para el formulario de registro */
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(to bottom right, #2b5876, #4e4376);
+}
+
+.register-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
 .register-form {
   display: flex;
   flex-direction: column;
@@ -470,17 +487,32 @@ canvas {
 }
 
 .register-form input {
+  width: 100%;
   padding: 0.75rem;
   border: 1px solid #ccc;
   border-radius: 0.5rem;
-  width: 100%;
 }
 
 .register-form button {
+  width: 100%;
+  padding: 0.75rem;
   background-color: #4e4376;
   color: white;
   border: none;
-  padding: 0.75rem;
   border-radius: 0.5rem;
   cursor: pointer;
+  margin-top: 1rem;
+}
+
+.existing-user {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.existing-user button {
+  background: none;
+  border: none;
+  color: #4e4376;
+  cursor: pointer;
+  font-weight: bold;
 }
