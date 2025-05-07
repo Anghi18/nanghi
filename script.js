@@ -205,22 +205,72 @@ function toggleDropdown(id) {
 function mostrarLogin() {
   if (intervaloActualizacion) clearInterval(intervaloActualizacion);
   ocultarTodasSecciones();
-  document.getElementById('loginSection').style.display = 'flex';
+  
+  const loginSection = document.getElementById('loginSection');
+  if (!loginSection) return;
+  
+  loginSection.className = 'login-container';
+  loginSection.style.display = 'flex';
+  
+  // Restaurar el formulario de login si fue reemplazado
+  if (!document.getElementById('loginForm')) {
+    loginSection.innerHTML = `
+      <div class="login-box">
+        <div class="login-header">
+          <img src="assets/logo.jpeg" alt="Logo" class="logo">
+          <h2>Iniciar sesión</h2>
+        </div>
+        <form id="loginForm">
+          <input type="email" id="loginEmail" placeholder="Correo electrónico" required>
+          <input type="password" id="loginPassword" placeholder="Contraseña" required>
+          <button type="submit">Iniciar sesión</button>
+        </form>
+        <div class="new-user">
+          <p>¿No tienes cuenta?</p>
+          <button id="registerBtn">Crear cuenta</button>
+        </div>
+      </div>
+    `;
+    
+    // Re-registrar eventos
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      if (appData.usuario && appData.usuario.email === email && appData.usuario.password === password) {
+        mostrarNotificacion('Inicio de sesión exitoso');
+        mostrarPresupuesto();
+      } else {
+        mostrarNotificacion('Credenciales incorrectas', true);
+      }
+    });
+    
+    document.getElementById('registerBtn').addEventListener('click', mostrarRegistro);
+  }
 }
 
 function mostrarRegistro() {
   ocultarTodasSecciones();
   
   const loginSection = document.getElementById('loginSection');
-  loginSection.innerHTML = '';
+  if (!loginSection) {
+    console.error("No se encontró el contenedor de login");
+    return;
+  }
+
+  // Cambiar clase para registro
+  loginSection.className = 'login-container';
+  loginSection.style.display = 'flex';
   
-  const registerHTML = `
+  // Crear formulario de registro
+  loginSection.innerHTML = `
     <div class="login-box">
       <div class="login-header">
         <img src="assets/logo.jpeg" alt="Logo" class="logo">
         <h2>Crear nueva cuenta</h2>
       </div>
-      <form id="registerForm" class="register-form">
+      <form id="registerForm">
         <input type="text" id="registerName" placeholder="Nombre completo" required>
         <input type="email" id="registerEmail" placeholder="Correo electrónico" required>
         <input type="password" id="registerPassword" placeholder="Contraseña" required>
@@ -233,14 +283,13 @@ function mostrarRegistro() {
       </div>
     </div>
   `;
-  
-  loginSection.insertAdjacentHTML('beforeend', registerHTML);
-  
+
+  // Registrar eventos del formulario de registro
   document.getElementById('registerForm').addEventListener('submit', function(e) {
     e.preventDefault();
     registrarUsuario();
   });
-  
+
   document.getElementById('backToLoginBtn').addEventListener('click', mostrarLogin);
 }
 
@@ -249,6 +298,11 @@ function registrarUsuario() {
   const email = document.getElementById('registerEmail').value.trim();
   const password = document.getElementById('registerPassword').value;
   const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+  if (!name || !email || !password || !confirmPassword) {
+    mostrarNotificacion('Todos los campos son obligatorios', true);
+    return;
+  }
 
   if (password !== confirmPassword) {
     mostrarNotificacion('Las contraseñas no coinciden', true);
@@ -306,10 +360,19 @@ function mostrarReportes() {
 }
 
 function ocultarTodasSecciones() {
-  document.getElementById('loginSection').style.display = 'none';
-  document.getElementById('presupuestoSection').style.display = 'none';
-  document.getElementById('analisisSection').style.display = 'none';
-  document.getElementById('reportesSection').style.display = 'none';
+  const sections = [
+    'loginSection',
+    'presupuestoSection',
+    'analisisSection',
+    'reportesSection'
+  ];
+  
+  sections.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.style.display = 'none';
+    }
+  });
 }
 
 function generarReporte() {
